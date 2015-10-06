@@ -5,8 +5,9 @@
     "start": "node ./app"
   },
   "dependencies": {
-    "bcrypt": "0.7.x",
+    "bcrypt": "0.8.x",
     "body-parser": "1.x.x",
+    "config": "^1.16.0",
     "connect-ensure-login": "^0.1.1",
     "cookie-parser": "1.x.x",
     "express": "4.x.x",

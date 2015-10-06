@@ -7,6 +7,7 @@ var bodyParser = require('body-parser');
 var expressValidator = require('express-validator');
 var logger = require('morgan');
 var mongoose = require('mongoose');
+var config = require('config');
 
 /*require("./authStrategies");
 var registrationController = require('./controllers/registrationController');
@@ -17,7 +18,7 @@ var profileController = require('./controllers/profileController');*/
 var site = require('./controllers/siteController');
 var oauth2 = require('./openIdConnectAuthServer');
 
-mongoose.connect('mongodb://tomj-implicit_auth-1840296:27017/oauth2orize_implicit_example');
+mongoose.connect(config.get('connectionstring'));
 
 // Express configuration
 var app = express();
@@ -69,7 +70,7 @@ app.post('/oauth/authorization',
                 return next(err);
             });
         })(req, res, next);
-    }, 
+    },
     loginController.performLogin);
 
 app.get('/authorization', authorizationController.performAuthorization);
@@ -78,4 +79,10 @@ app.post('/oauth/token', authorizationController.token);
 app.get('/profile', passport.authenticate('accessToken'), profileController.getProfile);*/
 
 //Start
+if(config.has('server.port')){
+  process.env.PORT = config.get('server.port');
+}
+if(config.has('server.ip')){
+  process.env.IP = config.get('server.ip');
+}
 http.createServer(app).listen(process.env.PORT || 3000, process.env.IP || "0.0.0.0");

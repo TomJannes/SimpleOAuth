@@ -1,0 +1,3 @@
+{
+  "connectionstring": "mongodb://tomj-implicit_auth-1840296:27017/oauth2orize_implicit_example"
+}
