@@ -31,10 +31,12 @@ passport.use(new LocalStrategy(
 ));
 
 passport.serializeUser(function(user, done) {
+    //todo: implement with id
     done(null, user);
 });
 
 passport.deserializeUser(function(user, done) {
+    //todo: implement with id
     done(null, user);
 });
 

@@ -1,0 +1,11 @@
+extends layout
+block content
+    div
+        p
+            Hi #{user.name}
+        p
+            You have been invited by #{client.name}
+        form(action='/dialog/authorize/decision' method='post')
+            input(name='transaction_id', type='hidden', value='#{transactionID}')
+            input(type='submit',value='Allow', id='allow')
+            input(type='submit',value='Deny', id='deny', name='cancel')

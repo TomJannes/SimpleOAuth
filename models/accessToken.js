@@ -1,13 +1,11 @@
 var mongoose = require('mongoose');
 var Schema = mongoose.Schema;
+var BaseSchema = require('./baseSchema');
 
-var accessTokenSchema = new Schema({
+var accessTokenSchema = new BaseSchema({
    token: { type: String, required: true },
-   expirationDate: { type: Date },
-   user: { type: Schema.Types.ObjectId, ref: 'User' },
-   client: { type: Schema.Types.ObjectId, ref: 'Client' },
-   grant: { type: Schema.Types.ObjectId, ref: 'GrantCode' },
-   scope: { type: String }
+   userId: { type: Schema.Types.ObjectId, ref: 'User' },
+   clientId: { type: Schema.Types.ObjectId, ref: 'Client' }
 });
 
 var AccessToken = mongoose.model('AccessToken', accessTokenSchema);

@@ -1,7 +1,7 @@
 extends layout
 block content
     div
-      form(action='/login',method='post')
+      form(action='/registration',method='post')
         p
             label(for='username') Username: 
                input(id='username', type='text',value='', name='username')
@@ -9,4 +9,8 @@ block content
             label(for='password') Password: 
                input(id='password', type='password',value='', name='password')
         p
-            input(type='submit',value='Login')
+            input(type='submit',value='Sign up')
+            
+            
+            
+            

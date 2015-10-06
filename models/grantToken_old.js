@@ -1,4 +1,4 @@
-var mongoose = require('mongoose');
+/*var mongoose = require('mongoose');
 var Schema = mongoose.Schema;
 
 var grantTokenSchema = new Schema({
@@ -8,4 +8,4 @@ var grantTokenSchema = new Schema({
 });
 
 var GrantToken = mongoose.model('GrantToken', grantTokenSchema);
-module.exports = GrantToken;
+module.exports = GrantToken;*/

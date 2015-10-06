@@ -1,10 +1,11 @@
 var mongoose = require('mongoose');
-var Schema = mongoose.Schema;
+var BaseSchema = require('./baseSchema');
 
-var userSchema = new Schema({
+var userSchema = new BaseSchema({
+    firstname: { type: String, required: true },
+    lastname: { type: String, required: true },
     username: { type: String, required: true, unique: true },
     password: { type: String, required: true }
-    //todo: add client to link user to clients
 });
 
 var User = mongoose.model('User', userSchema);

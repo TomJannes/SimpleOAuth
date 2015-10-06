@@ -7,6 +7,7 @@
   "dependencies": {
     "bcrypt": "0.7.x",
     "body-parser": "1.x.x",
+    "connect-ensure-login": "^0.1.1",
     "cookie-parser": "1.x.x",
     "express": "4.x.x",
     "express-session": "1.x.x",
@@ -15,6 +16,7 @@
     "mongoose": "^4.1.8",
     "morgan": "^1.6.1",
     "oauth2orize": "1.x.x",
+    "oauth2orize-openid": "0.0.1",
     "passport": "0.2.x",
     "passport-http": "0.2.x",
     "passport-http-bearer": "1.x.x",

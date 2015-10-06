@@ -8,11 +8,14 @@ var expressValidator = require('express-validator');
 var logger = require('morgan');
 var mongoose = require('mongoose');
 
-require("./authStrategies");
+/*require("./authStrategies");
 var registrationController = require('./controllers/registrationController');
 var loginController = require('./controllers/loginController');
 var authorizationController = require('./controllers/authorizationController');
-var profileController = require('./controllers/profileController');
+var profileController = require('./controllers/profileController');*/
+
+var site = require('./controllers/siteController');
+var oauth2 = require('./openIdConnectAuthServer');
 
 mongoose.connect('mongodb://tomj-implicit_auth-1840296:27017/oauth2orize_implicit_example');
 
@@ -28,7 +31,28 @@ app.use(logger('dev'));
 app.use(passport.initialize());
 app.use(passport.session());
 
-app.get('/client/registration', registrationController.showClientRegistration);
+require('./openIdConnectAuthStrategies');
+
+app.get('/', site.index);
+app.get('/userregistration', site.registerUserForm);
+app.post('/userregistration', site.registerUser);
+app.get('/clientregistration', site.registerClientForm);
+app.post('/clientregistration', site.registerClient);
+
+app.get('/login', site.loginForm);
+app.post('/login', site.login);
+app.get('/logout', site.logout);
+app.get('/account', site.account);
+
+app.get('/dialog/authorize', oauth2.authorization);
+app.post('/dialog/authorize/decision', oauth2.decision);
+app.post('/oauth/token', oauth2.token);
+
+//implement when bearer is ok
+/*app.get('/api/userinfo', user.info);
+app.get('/api/clientinfo', client.info);*/
+
+/*app.get('/client/registration', registrationController.showClientRegistration);
 app.post('/client/registration', registrationController.registerClient);
 
 app.get('/registration', registrationController.showUserRegistration);
@@ -51,7 +75,7 @@ app.post('/oauth/authorization',
 app.get('/authorization', authorizationController.performAuthorization);
 app.post('/oauth/token', authorizationController.token);
 
-app.get('/profile', passport.authenticate('accessToken'), profileController.getProfile);
+app.get('/profile', passport.authenticate('accessToken'), profileController.getProfile);*/
 
 //Start
 http.createServer(app).listen(process.env.PORT || 3000, process.env.IP || "0.0.0.0");
