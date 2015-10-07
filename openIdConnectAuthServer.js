@@ -11,6 +11,7 @@ var oauth2orize = require('oauth2orize')
   , AccessToken = require('./models/accessToken')
   , Client = require('./models/client')
   , User = require('./models/user')
+  , jws = require("jsjws")
   , utils = require('./utils');
 
 // create OAuth 2.0 server
@@ -118,10 +119,11 @@ SGVsbG8gV29ybGQ=
 > console.log(new Buffer("SGVsbG8gV29ybGQ=", 'base64').toString('ascii'))
 Hello World*/
 
-function createAuthorizationCode(clientId, userId, done){
+function createAuthorizationCode(clientId, userId, redirectUri, done){
   var code = utils.uid(16)
   var newAuthorizationCode = new AuthorizationCode({
     code: code,
+    redirectUri: redirectUri,
     userId: userId,
     clientId: clientId,
   })
@@ -137,7 +139,7 @@ function createAccessToken(clientId, userId, done){
     token: token,
     userId: userId,
     clientId: clientId
-  })
+  });
   newAccessToken.save(function(err) {
       if (err) { return done(err); }
       done(null, token);
@@ -167,7 +169,7 @@ server.grant(oauth2orize_ext.grant.codeIdTokenToken(
   },
   function(client, redirect_uri, user, done){
     //what should i do with the redirect url here?? find out (see comments further down, is needed for extra security check)
-    createAuthorizationCode(client.id, user.id, done)
+    createAuthorizationCode(client.id, user.id, redirect_uri, done)
   },
   function(client, user, done){
     //do we need validation of some sorts here?
@@ -191,7 +193,7 @@ server.grant(oauth2orize_ext.grant.codeIdTokenToken(
 // values, and will be exchanged for an access token.
 
 server.grant(oauth2orize.grant.code(function(client, redirectURI, user, ares, done) {
-  createAuthorizationCode(client.id, user.id, done);
+  createAuthorizationCode(client.id, user.id, redirectURI, done);
 }));
 
 // Grant implicit authorization.  The callback takes the `client` requesting
@@ -213,11 +215,44 @@ server.grant(oauth2orize.grant.token(function(client, user, ares, done) {
 server.exchange(oauth2orize.exchange.code(function(client, code, redirectURI, done) {
   AuthorizationCode.findOne({code: code}, function(err, authCode) {
     if (err) { return done(err); }
-    if (client.id !== authCode.clientID) { return done(null, false); }
-    if (redirectURI !== authCode.redirectURI) { return done(null, false); }
+    if (!authCode.clientId.equals(client.id)) { return done(null, false); }
+    if (redirectURI !== authCode.redirectUri) { return done(null, false); }
     
-    createAccessToken(authCode.id, authCode.id, done)
-  });
+    var accessToken = utils.uid(256);
+    var newAccessToken = new AccessToken({
+      token: accessToken,
+      userId: authCode.userId,
+      clientId: authCode.clientId
+    });
+    newAccessToken.save(function(err) {
+        if (err) { return done(err); }
+        
+        var lifetimeInMinutes = 60;
+        var id_token= {
+         "iss": "https://server.example.com",
+         "sub": authCode.userId,
+         "aud": authCode.clientId,
+         "exp": new Date((new Date()).getTime() + lifetimeInMinutes*60000),
+         "iat": new Date()
+        };
+        var jsjws = require('jsjws');
+        //do this once and save
+        var key = jsjws.generatePrivateKey(2048, 65537);
+        var priv_pem = key.toPrivatePem('utf8');
+        var pub_pem = key.toPublicPem('utf8');
+        var header = { alg: 'RS256' };
+
+        var priv_key = jsjws.createPrivateKey(priv_pem, 'utf8');
+        var pub_key = jsjws.createPublicKey(pub_pem, 'utf8');
+        var sig = new jsjws.JWS().generateJWSByKey(header, JSON.stringify(id_token), priv_key);
+        //var jws = new jsjws.JWS();
+        //var base64Token = new Buffer(JSON.stringify(id_token)).toString('base64');
+        //var base64Token = x.toString('base64');
+        
+        done(null, accessToken, null, { id_token : sig});
+    });
+    //createAccessToken(authCode.clientId, authCode.userId, done)
+  })
 }));
 
 // Exchange user id and password for access tokens.  The callback accepts the

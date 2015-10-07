@@ -4,6 +4,7 @@ var BaseSchema = require('./baseSchema');
 
 var authorizationCodeSchema = new BaseSchema({
    code: { type: String, required: true },
+   redirectUri: { type: String },
    userId: { type: Schema.Types.ObjectId, ref: 'User' },
    clientId: { type: Schema.Types.ObjectId, ref: 'Client' },
 });
