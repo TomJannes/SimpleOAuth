@@ -11,8 +11,9 @@ var oauth2orize = require('oauth2orize')
   , AccessToken = require('./models/accessToken')
   , Client = require('./models/client')
   , User = require('./models/user')
-  , jws = require("jsjws")
-  , utils = require('./utils');
+  , jsjws = require("jsjws")
+  , utils = require('./utils')
+  , config = require('config');
 
 // create OAuth 2.0 server
 var server = oauth2orize.createServer();
@@ -87,7 +88,7 @@ server.grant(oauth2orize_ext.grant.codeIdToken(
     //do i need lookups here?
     var lifetimeInMinutes = 60;
     var id_token= {
-     "iss": "https://server.example.com",
+     "iss": config.get('issuer'),
      "sub": user.id,
      "aud": client.clientId,
      "exp": new Date((new Date()).getTime() + lifetimeInMinutes*60000),
@@ -149,7 +150,7 @@ function createAccessToken(clientId, userId, done){
 function createIdToken(clientId, userId, done){
   var lifetimeInMinutes = 60;
   var id_token= {
-   "iss": "https://server.example.com",
+   "iss": config.get('issuer'),
    "sub": userId,
    "aud": clientId,
    "exp": new Date((new Date()).getTime() + lifetimeInMinutes*60000),
@@ -229,13 +230,12 @@ server.exchange(oauth2orize.exchange.code(function(client, code, redirectURI, do
         
         var lifetimeInMinutes = 60;
         var id_token= {
-         "iss": "https://server.example.com",
+         "iss": config.get('issuer'),
          "sub": authCode.userId,
          "aud": authCode.clientId,
          "exp": new Date((new Date()).getTime() + lifetimeInMinutes*60000),
          "iat": new Date()
         };
-        var jsjws = require('jsjws');
         //do this once and save
         var key = jsjws.generatePrivateKey(2048, 65537);
         var priv_pem = key.toPrivatePem('utf8');
@@ -245,13 +245,9 @@ server.exchange(oauth2orize.exchange.code(function(client, code, redirectURI, do
         var priv_key = jsjws.createPrivateKey(priv_pem, 'utf8');
         var pub_key = jsjws.createPublicKey(pub_pem, 'utf8');
         var sig = new jsjws.JWS().generateJWSByKey(header, JSON.stringify(id_token), priv_key);
-        //var jws = new jsjws.JWS();
-        //var base64Token = new Buffer(JSON.stringify(id_token)).toString('base64');
-        //var base64Token = x.toString('base64');
-        
+
         done(null, accessToken, null, { id_token : sig});
     });
-    //createAccessToken(authCode.clientId, authCode.userId, done)
   })
 }));
 

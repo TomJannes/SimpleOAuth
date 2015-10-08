@@ -12,8 +12,8 @@ var config = require('config');
 /*require("./authStrategies");
 var registrationController = require('./controllers/registrationController');
 var loginController = require('./controllers/loginController');
-var authorizationController = require('./controllers/authorizationController');
-var profileController = require('./controllers/profileController');*/
+var authorizationController = require('./controllers/authorizationController');*/
+var profileController = require('./controllers/profileController');
 
 var site = require('./controllers/siteController');
 var oauth2 = require('./openIdConnectAuthServer');
@@ -48,6 +48,8 @@ app.get('/account', site.account);
 app.get('/dialog/authorize', oauth2.authorization);
 app.post('/dialog/authorize/decision', oauth2.decision);
 app.post('/oauth/token', oauth2.token);
+
+app.get('/oauth/profile', passport.authenticate('bearer'), profileController.getProfile);
 
 //implement when bearer is ok
 /*app.get('/api/userinfo', user.info);

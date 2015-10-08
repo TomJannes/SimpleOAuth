@@ -1,36 +1,13 @@
-oauth2orize_implicit_example
-============================
+Openid connect example
+----------------------
 
-This is an example of the oAuth implicit flow using oauth2orize, express 4 and mongoDB.
+Configuration
+-------------
+config can be found in the config folder.
+set environment by calling export NODE_ENV=<environment>
 
-##### Installation
-
-```
-git clone https://github.com/reneweb/oauth2orize_implicit_example.git
-npm install
-node app.js
-```
-Note: You may need to change the database configuration in the db.js file, if mongoDB doesn't run using the default port or is not running on localhost.
-
-##### Usage (with cURL)
-
-###### 0 - Register a client
-
-Navigate to /client/registration. Register a new client.
-
-###### 1 - Register a user
-
-Navigate to /registration. Register a new user.
-
-###### 2 - Get an access token
-
-Navigate to /oauth/authorization?clientId=&lt;clientId&gt;&redirectUri=&lt;redirectUri&gt;&responseType=token. Login with username and password. Then allow the client to access your account.
-If everything works the access code is returned in the fragment identifier of the URL.
-
-
-###### 3 - Access a restricted resource using the access token
-
-```
-curl -X GET <IP>:<PORT>/restricted -v -H "Authorization: Bearer <accessToken>"
-```
-
+mongodb
+-------
+mongodb migrations will be used to perform data seed (https://github.com/emirotin/mongodb-migrations)
+create migration: ./node_modules/.bin/mm create newfile --config=./migrations/mm-config-cloud9.json
+run migrations: ./node_modules/.bin/mm --config=./migrations/mm-config-cloud9.json migrate

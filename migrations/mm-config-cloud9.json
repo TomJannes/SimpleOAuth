@@ -1,0 +1,7 @@
+{
+    "host": "tomj-implicit_auth-1840296",
+    "port": "27017",
+    "db": "authentication",
+    "collection": "migrations",
+    "directory": "./migrations"
+}
