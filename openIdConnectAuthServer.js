@@ -13,7 +13,8 @@ var oauth2orize = require('oauth2orize')
   , User = require('./models/user')
   , jsjws = require("jsjws")
   , utils = require('./utils')
-  , config = require('config');
+  , config = require('config')
+  , fs = require('fs'); //todo: move to startup + cache
 
 // create OAuth 2.0 server
 var server = oauth2orize.createServer();
@@ -237,16 +238,23 @@ server.exchange(oauth2orize.exchange.code(function(client, code, redirectURI, do
          "iat": new Date()
         };
         //do this once and save
-        var key = jsjws.generatePrivateKey(2048, 65537);
-        var priv_pem = key.toPrivatePem('utf8');
-        var pub_pem = key.toPublicPem('utf8');
+        //var key = jsjws.generatePrivateKey(2048, 65537);
+        //var priv_pem = key.toPrivatePem('utf8');
+        //var pub_pem = key.toPublicPem('utf8');
+        
         var header = { alg: 'RS256' };
+        fs.readFile('private_key.pem', 'utf8', function(err, data) {
+          if (err) throw err;
+          var priv_key = jsjws.createPrivateKey(data, 'utf8');
+          //var pub_key = jsjws.createPublicKey(pub_pem, 'utf8');
+          var sig = new jsjws.JWS().generateJWSByKey(header, JSON.stringify(id_token), priv_key);
+        
+          //var temp1 = new jsjws.JWS().verifyJWSByKey(sig, pub_key, ['RS256']);
+          //new jsjws.JWS().getParsedHeader
+          done(null, accessToken, null, { id_token : sig});
+        });
 
-        var priv_key = jsjws.createPrivateKey(priv_pem, 'utf8');
-        var pub_key = jsjws.createPublicKey(pub_pem, 'utf8');
-        var sig = new jsjws.JWS().generateJWSByKey(header, JSON.stringify(id_token), priv_key);
-
-        done(null, accessToken, null, { id_token : sig});
+        
     });
   })
 }));

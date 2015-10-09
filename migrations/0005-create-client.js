@@ -3,7 +3,7 @@ var ObjectId = require('mongodb').ObjectId;
 exports.id = '0005-create-client';
 
 exports.up = function (done) {
-  var coll = this.db.collection('client');
+  var coll = this.db.collection('clients');
   coll.insert({ 
       _id: ObjectId('560d00da421db3b427f90308'), 
       name: 'testopenid', 
