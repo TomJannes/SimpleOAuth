@@ -8,7 +8,7 @@ var expressValidator = require('express-validator');
 var logger = require('morgan');
 var mongoose = require('mongoose');
 var config = require('config');
-
+var Promise = require('bluebird');
 /*require("./authStrategies");
 var registrationController = require('./controllers/registrationController');
 var loginController = require('./controllers/loginController');
@@ -17,6 +17,10 @@ var profileController = require('./controllers/profileController');
 
 var site = require('./controllers/siteController');
 var oauth2 = require('./openIdConnectAuthServer');
+
+Promise.promisifyAll(mongoose.Model);
+Promise.promisifyAll(mongoose.Model.prototype);
+Promise.promisifyAll(mongoose.Query.prototype);
 
 mongoose.connect(config.get('connectionstring'));
 

@@ -9,12 +9,15 @@ var oauth2orize = require('oauth2orize')
   , utils = require('./utils')
   , AuthorizationCode = require('./models/authorizationCode')
   , AccessToken = require('./models/accessToken')
+  , RefreshToken = require('./models/refreshToken')
   , Client = require('./models/client')
   , User = require('./models/user')
-  , jsjws = require("jsjws")
+  , jwt = require('jsonwebtoken')
   , utils = require('./utils')
   , config = require('config')
-  , fs = require('fs'); //todo: move to startup + cache
+  , crypto = require('crypto')
+  , Promise = require('bluebird')
+  , fs = Promise.promisifyAll(require('fs')); //todo: move to startup + cache
 
 // create OAuth 2.0 server
 var server = oauth2orize.createServer();
@@ -122,7 +125,7 @@ SGVsbG8gV29ybGQ=
 Hello World*/
 
 function createAuthorizationCode(clientId, userId, redirectUri, done){
-  var code = utils.uid(16)
+  var code = crypto.randomBytes(16).toString('hex');
   var newAuthorizationCode = new AuthorizationCode({
     code: code,
     redirectUri: redirectUri,
@@ -148,34 +151,21 @@ function createAccessToken(clientId, userId, done){
   });
 }
 
-function createIdToken(clientId, userId, done){
-  var lifetimeInMinutes = 60;
-  var id_token= {
-   "iss": config.get('issuer'),
-   "sub": userId,
-   "aud": clientId,
-   "exp": new Date((new Date()).getTime() + lifetimeInMinutes*60000),
-   "iat": new Date()
-  };
-  var base64Token = new Buffer(JSON.stringify(id_token)).toString('base64');
-  done(null, base64Token);
-}
-
 // 'code id_token token' grant type.
 server.grant(oauth2orize_ext.grant.codeIdTokenToken(
  function(client, user, done){
     // Do your lookup/token generation.
     //access_token
     //do we need to lookup the access token and reuse if one exists or always generate a new one????
-    createAccessToken(client.id, user.id, done)
+    //createAccessToken(client.id, user.id, done)
   },
   function(client, redirect_uri, user, done){
     //what should i do with the redirect url here?? find out (see comments further down, is needed for extra security check)
-    createAuthorizationCode(client.id, user.id, redirect_uri, done)
+    //createAuthorizationCode(client.id, user.id, redirect_uri, done)
   },
   function(client, user, done){
     //do we need validation of some sorts here?
-    createIdToken(client.clientId, user.userId, done);
+    //createIdToken(client.clientId, user.userId, done);
   }
 ));
 
@@ -195,7 +185,15 @@ server.grant(oauth2orize_ext.grant.codeIdTokenToken(
 // values, and will be exchanged for an access token.
 
 server.grant(oauth2orize.grant.code(function(client, redirectURI, user, ares, done) {
-  createAuthorizationCode(client.id, user.id, redirectURI, done);
+  AuthorizationCode.findOne({userId: user.id, clientId: client.id}, function(err, authCode) {
+    if(err) { done(err); }
+    if(!authCode) {
+      createAuthorizationCode(client.id, user.id, redirectURI, done);
+    }
+    else {
+      done(null, authCode.code);
+    }
+  });
 }));
 
 // Grant implicit authorization.  The callback takes the `client` requesting
@@ -208,55 +206,145 @@ server.grant(oauth2orize.grant.token(function(client, user, ares, done) {
   createAccessToken(client.id, user.id, done);
 }));
 
+
+
+function removeTokens(clientId, userId){
+  return AccessToken.removeAsync({ userId: userId, clientId: clientId })
+    .then(function(){
+      return RefreshToken.removeAsync({ userId: userId, clientId: clientId });
+    });
+}
+
+function createRefreshToken(clientId, userId){
+  var refreshToken = utils.uid(32);
+  return new RefreshToken({
+    token: refreshToken,
+    userId: userId,
+    clientId: clientId
+  }); 
+}
+
+function createAccessToken(clientId, userId){
+  var accessToken = utils.uid(256);
+  return new AccessToken({
+    token: accessToken,
+    userId: userId,
+    clientId: clientId
+  });
+}
+
+function generateTokenOptions(clientId, userId){
+  return {
+    algorithm: 'RS256',
+    expiresIn: '12h',
+    audience: clientId,
+    subject: userId,
+    issuer: config.get('issuer')
+  };
+}
+
 // Exchange authorization codes for access tokens.  The callback accepts the
 // `client`, which is exchanging `code` and any `redirectURI` from the
 // authorization request for verification.  If these values are validated, the
 // application issues an access token on behalf of the user who authorized the
 // code.
-
 server.exchange(oauth2orize.exchange.code(function(client, code, redirectURI, done) {
-  AuthorizationCode.findOne({code: code}, function(err, authCode) {
-    if (err) { return done(err); }
-    if (!authCode.clientId.equals(client.id)) { return done(null, false); }
-    if (redirectURI !== authCode.redirectUri) { return done(null, false); }
-    
-    var accessToken = utils.uid(256);
-    var newAccessToken = new AccessToken({
-      token: accessToken,
-      userId: authCode.userId,
-      clientId: authCode.clientId
-    });
-    newAccessToken.save(function(err) {
-        if (err) { return done(err); }
-        
-        var lifetimeInMinutes = 60;
-        var id_token= {
-         "iss": config.get('issuer'),
-         "sub": authCode.userId,
-         "aud": authCode.clientId,
-         "exp": new Date((new Date()).getTime() + lifetimeInMinutes*60000),
-         "iat": new Date()
-        };
-        //do this once and save
-        //var key = jsjws.generatePrivateKey(2048, 65537);
-        //var priv_pem = key.toPrivatePem('utf8');
-        //var pub_pem = key.toPublicPem('utf8');
-        
-        var header = { alg: 'RS256' };
-        fs.readFile('private_key.pem', 'utf8', function(err, data) {
-          if (err) throw err;
-          var priv_key = jsjws.createPrivateKey(data, 'utf8');
-          //var pub_key = jsjws.createPublicKey(pub_pem, 'utf8');
-          var sig = new jsjws.JWS().generateJWSByKey(header, JSON.stringify(id_token), priv_key);
-        
-          //var temp1 = new jsjws.JWS().verifyJWSByKey(sig, pub_key, ['RS256']);
-          //new jsjws.JWS().getParsedHeader
-          done(null, accessToken, null, { id_token : sig});
-        });
+  AuthorizationCode.findOneAsync({code: code})
+    .bind({})
+    .then(function(authCode) {
+      this.authCode = authCode;
+      if (!authCode.clientId.equals(client.id)) { return [false]; }
+      if (redirectURI !== authCode.redirectUri) { return [false]; }
+      
+      return removeTokens(this.authCode.clientId, this.authCode.userId);
+    })
+    .then(function(){
+      var newRefreshToken = createRefreshToken(this.authCode.clientId, this.authCode.userId);
+      return newRefreshToken.saveAsync();
+    })
+    .spread(function(savedRefreshToken){
+      this.savedRefreshToken = savedRefreshToken;
+      var newAccessToken = createAccessToken(this.authCode.clientId, this.authCode.userId)
+      return newAccessToken.saveAsync();
+    })
+    .spread(function(savedAccessToken){
+      this.savedAccessToken = savedAccessToken;
+      return fs.readFileAsync('private_key.pem', 'utf8');
+    })
+    .then(function(data) {
+      var token = jwt.sign({ foo: 'bar' }, data, generateTokenOptions(client.clientId, this.authCode.userId));
+      return [this.savedAccessToken.token, this.savedRefreshToken.token, {id_token: token}];
+    })
+    .catch(function(err){
+      return [err];
+    })
+    .nodeify(done, {spread:true});
+}));
 
-        
+server.exchange(oauth2orize.exchange.refreshToken(function(client, refreshToken, scope, done) {
+    RefreshToken.findOne({ token: refreshToken }, function(err, token) {
+        if (err) { return done(err); }
+        if (!token) { return done(null, false); }
+        if (!token) { return done(null, false); }
+
+        User.findById(token.userId, function(err, user) {
+            if (err) { return done(err); }
+            if (!user) { return done(null, false); }
+
+            RefreshToken.remove({ userId: user.userId, clientId: client.clientId }, function (err) {
+                if (err) return done(err);
+            });
+            AccessToken.remove({ userId: user.userId, clientId: client.clientId }, function (err) {
+                if (err) return done(err);
+            });
+            
+            var refreshToken = utils.uid(32);
+            var newRefreshToken = new RefreshToken({
+              token: refreshToken,
+              userId: user.userId,
+              clientId: client.clientId
+            });
+            newRefreshToken.save(function (err){
+              if (err) { return done(err); }
+              var accessToken = utils.uid(256);
+              var newAccessToken = new AccessToken({
+                token: accessToken,
+                userId: user.userId,
+                clientId: client.clientId
+              });
+              newAccessToken.save(function(err) {
+                if (err) { return done(err); }
+                
+                fs.readFile('private_key.pem', 'utf8', function(err, data) {
+                  if (err) throw err;
+                  var options = {
+                    algorithm: 'RS256',
+                    expiresIn: '12h',
+                    audience: client.clientId,
+                    subject: user.userId,
+                    issuer: config.get('issuer')
+                  };
+                  
+                  var token = jwt.sign({ foo: 'bar' }, data, options);
+                  done(null, accessToken, refreshToken, { id_token : token});
+                });
+              });
+            });
+            
+            /*var tokenValue = crypto.randomBytes(32).toString('hex');
+            var refreshTokenValue = crypto.randomBytes(32).toString('hex');
+            var token = new AccessToken({ token: tokenValue, clientId: client.clientId, userId: user.userId });
+            var refreshToken = new RefreshToken({ token: refreshTokenValue, clientId: client.clientId, userId: user.userId });
+            refreshToken.save(function (err) {
+                if (err) { return done(err); }
+            });
+            var info = { scope: '*' }
+            token.save(function (err, token) {
+                if (err) { return done(err); }
+                done(null, tokenValue, refreshTokenValue, { 'expires_in': config.get('security:tokenLife') });
+            });*/
+        });
     });
-  })
 }));
 
 // Exchange user id and password for access tokens.  The callback accepts the
@@ -337,9 +425,20 @@ exports.authorization = [
       return done(null, client, redirectURI);
     });
   }),
-  function(req, res){
-    res.render('dialog', { transactionID: req.oauth2.transactionID, user: req.user, client: req.oauth2.client });
-    console.log('send mail with invitation link')
+  function (req, res, next) {
+    if (req.query.prompt !== 'none') return next();
+    // When using "prompt=none", redirect back immediately
+    server.decision({loadTransaction: false}, function parse(sreq, done) {
+      if (!sreq.user) return done(null, {allow: false});
+      done();
+    })(req, res, next);
+  },
+  function (req, res) {
+    res.render('dialog', {
+      transactionID: req.oauth2.transactionID,
+      user: req.user,
+      client: req.oauth2.client
+    });
   }
 ]
 

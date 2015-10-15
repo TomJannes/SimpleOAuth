@@ -6,6 +6,7 @@
   },
   "dependencies": {
     "bcrypt": "0.8.x",
+    "bluebird": "^2.10.2",
     "body-parser": "1.x.x",
     "config": "^1.16.0",
     "connect-ensure-login": "^0.1.1",
@@ -14,7 +15,7 @@
     "express-session": "1.x.x",
     "express-validator": "2.x.x",
     "jade": "1.x.x",
-    "jsjws": "^2.0.4",
+    "jsonwebtoken": "^5.4.0",
     "mongoose": "^4.1.8",
     "morgan": "^1.6.1",
     "oauth2orize": "1.x.x",
