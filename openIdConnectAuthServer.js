@@ -124,21 +124,9 @@ SGVsbG8gV29ybGQ=
 > console.log(new Buffer("SGVsbG8gV29ybGQ=", 'base64').toString('ascii'))
 Hello World*/
 
-function createAuthorizationCode(clientId, userId, redirectUri, done){
-  var code = crypto.randomBytes(16).toString('hex');
-  var newAuthorizationCode = new AuthorizationCode({
-    code: code,
-    redirectUri: redirectUri,
-    userId: userId,
-    clientId: clientId,
-  })
-  newAuthorizationCode.save(function(err) {
-    if (err) { return done(err); }
-    done(null, code);
-  });
-}
 
-function createAccessToken(clientId, userId, done){
+
+/*function createAccessToken(clientId, userId, done){
   var token = utils.uid(256);
   var newAccessToken = new AccessToken({
     token: token,
@@ -149,7 +137,7 @@ function createAccessToken(clientId, userId, done){
       if (err) { return done(err); }
       done(null, token);
   });
-}
+}*/
 
 // 'code id_token token' grant type.
 server.grant(oauth2orize_ext.grant.codeIdTokenToken(
@@ -176,37 +164,6 @@ server.grant(oauth2orize_ext.grant.codeIdTokenToken(
 // applications limited access to their protected resources.  It does this
 // through a process of the user granting access, and the client exchanging
 // the grant for an access token.
-
-// Grant authorization codes.  The callback takes the `client` requesting
-// authorization, the `redirectURI` (which is used as a verifier in the
-// subsequent exchange), the authenticated `user` granting access, and
-// their response, which contains approved scope, duration, etc. as parsed by
-// the application.  The application issues a code, which is bound to these
-// values, and will be exchanged for an access token.
-
-server.grant(oauth2orize.grant.code(function(client, redirectURI, user, ares, done) {
-  AuthorizationCode.findOne({userId: user.id, clientId: client.id}, function(err, authCode) {
-    if(err) { done(err); }
-    if(!authCode) {
-      createAuthorizationCode(client.id, user.id, redirectURI, done);
-    }
-    else {
-      done(null, authCode.code);
-    }
-  });
-}));
-
-// Grant implicit authorization.  The callback takes the `client` requesting
-// authorization, the authenticated `user` granting access, and
-// their response, which contains approved scope, duration, etc. as parsed by
-// the application.  The application issues a token, which is bound to these
-// values.
-
-server.grant(oauth2orize.grant.token(function(client, user, ares, done) {
-  createAccessToken(client.id, user.id, done);
-}));
-
-
 
 function removeTokens(clientId, userId){
   return AccessToken.removeAsync({ userId: userId, clientId: clientId })
@@ -242,6 +199,55 @@ function generateTokenOptions(clientId, userId){
     issuer: config.get('issuer')
   };
 }
+
+function createAuthorizationCode(clientId, userId, redirectUri){
+  var code = crypto.randomBytes(16).toString('hex');
+  return new AuthorizationCode({
+    code: code,
+    redirectUri: redirectUri,
+    userId: userId,
+    clientId: clientId,
+  });
+}
+
+// Grant authorization codes.  The callback takes the `client` requesting
+// authorization, the `redirectURI` (which is used as a verifier in the
+// subsequent exchange), the authenticated `user` granting access, and
+// their response, which contains approved scope, duration, etc. as parsed by
+// the application.  The application issues a code, which is bound to these
+// values, and will be exchanged for an access token.
+server.grant(oauth2orize.grant.code(function(client, redirectURI, user, ares, done) {
+  AuthorizationCode.findOneAsync({userId: user.id, clientId: client.id})
+    .then(function(authCode) {
+      if(!authCode) {
+        var authorizationCode = createAuthorizationCode(client.id, user.id, redirectURI);
+        return authorizationCode.saveAsync();
+      }
+      else {
+        return [authCode];
+      }
+    })
+    .spread(function(authCode){
+      return [authCode.code];
+    })
+    .catch(function(err){
+      return [err];
+    })
+    .nodeify(done, {spread: true});
+}));
+
+// Grant implicit authorization.  The callback takes the `client` requesting
+// authorization, the authenticated `user` granting access, and
+// their response, which contains approved scope, duration, etc. as parsed by
+// the application.  The application issues a token, which is bound to these
+// values.
+server.grant(oauth2orize.grant.token(function(client, user, ares, done) {
+  var token = createAccessToken(client.id, user.id);
+  token.save(function(err) {
+      if (err) { return done(err); }
+      done(null, token);
+  });
+}));
 
 // Exchange authorization codes for access tokens.  The callback accepts the
 // `client`, which is exchanging `code` and any `redirectURI` from the
