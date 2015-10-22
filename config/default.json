@@ -1,3 +1,5 @@
 {
-  "issuer": "http://my.openidconnecttest.com"
+  "issuer": "http://my.openidconnecttest.com",
+  "accesstoken_lifetime_in_minutes": 10,
+  "refreshtoken_lifetime_in_minutes": 60
 }

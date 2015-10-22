@@ -28,7 +28,10 @@ mongoose.connect(config.get('connectionstring'));
 var app = express();
 app.set('views', __dirname + '/views');
 app.set('view engine', 'jade');
-app.use(bodyParser());
+app.use(bodyParser.json());
+app.use(bodyParser.urlencoded({
+  extended: true
+}));
 app.use(expressValidator());
 app.use(session({ secret: 'keyboard cat1'}));
 app.use(logger('dev'));
@@ -54,35 +57,6 @@ app.post('/dialog/authorize/decision', oauth2.decision);
 app.post('/oauth/token', oauth2.token);
 
 app.get('/oauth/profile', passport.authenticate('bearer'), profileController.getProfile);
-
-//implement when bearer is ok
-/*app.get('/api/userinfo', user.info);
-app.get('/api/clientinfo', client.info);*/
-
-/*app.get('/client/registration', registrationController.showClientRegistration);
-app.post('/client/registration', registrationController.registerClient);
-
-app.get('/registration', registrationController.showUserRegistration);
-app.post('/registration', registrationController.registerUser);
-
-app.get('/oauth/authorization', loginController.showLogin);
-app.post('/oauth/authorization',
-    //calling custom callback because we can not have dynamic failureredirects otherwise
-    function(req, res, next) {
-        passport.authenticate('local', function(err, user, info) {
-            if (err) { return next(err); }
-            if (!user) { return res.redirect('/oauth/authorization?response_type=' + req.body.responseType + '&client_id=' + req.body.clientId + (req.body.redirectUri ? '&redirect_uri=' + req.body.redirectUri : '')); }
-            req.logIn(user, function(err) {
-                return next(err);
-            });
-        })(req, res, next);
-    },
-    loginController.performLogin);
-
-app.get('/authorization', authorizationController.performAuthorization);
-app.post('/oauth/token', authorizationController.token);
-
-app.get('/profile', passport.authenticate('accessToken'), profileController.getProfile);*/
 
 //Start
 if(config.has('server.port')){

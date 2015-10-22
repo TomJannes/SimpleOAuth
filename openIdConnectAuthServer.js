@@ -1,23 +1,23 @@
 /**
  * Module dependencies.
  */
-var oauth2orize = require('oauth2orize')
-  , oauth2orize_ext = require('oauth2orize-openid') // require extentions.
-  , passport = require('passport')
-  , login = require('connect-ensure-login')
-  //, db = require('./db')
-  , utils = require('./utils')
-  , AuthorizationCode = require('./models/authorizationCode')
-  , AccessToken = require('./models/accessToken')
-  , RefreshToken = require('./models/refreshToken')
-  , Client = require('./models/client')
-  , User = require('./models/user')
-  , jwt = require('jsonwebtoken')
-  , utils = require('./utils')
-  , config = require('config')
-  , crypto = require('crypto')
-  , Promise = require('bluebird')
-  , fs = Promise.promisifyAll(require('fs')); //todo: move to startup + cache
+var oauth2orize = require('oauth2orize'),
+  oauth2orize_ext = require('oauth2orize-openid'), // require extentions.
+  passport = require('passport'),
+  login = require('connect-ensure-login'),
+  utils = require('./utils'),
+  AuthorizationCode = require('./models/authorizationCode'),
+  AccessToken = require('./models/accessToken'),
+  RefreshToken = require('./models/refreshToken'),
+  Client = require('./models/client'),
+  User = require('./models/user'),
+  jwt = require('jsonwebtoken'),
+  utils = require('./utils'),
+  config = require('config'),
+  crypto = require('crypto'),
+  Promise = require('bluebird'),
+  fs = Promise.promisifyAll(require('fs')), //todo: move to startup + cache
+  NotAllowedError = require('./errors/notAllowedError');
 
 // create OAuth 2.0 server
 var server = oauth2orize.createServer();
@@ -41,7 +41,9 @@ server.serializeClient(function(client, done) {
 
 server.deserializeClient(function(id, done) {
   Client.findById(id, function(err, client) {
-    if (err) { return done(err); }
+    if (err) {
+      return done(err);
+    }
     return done(null, client);
   });
 });
@@ -51,7 +53,7 @@ server.deserializeClient(function(id, done) {
 // Implicit Flow
 
 // id_token grant type.
-server.grant(oauth2orize_ext.grant.idToken(function(client, user, done){
+server.grant(oauth2orize_ext.grant.idToken(function(client, user, done) {
   var id_token;
   // Do your lookup/token generation.
   // ... id_token =
@@ -61,15 +63,15 @@ server.grant(oauth2orize_ext.grant.idToken(function(client, user, done){
 
 // 'id_token token' grant type.
 server.grant(oauth2orize_ext.grant.idTokenToken(
-  function(client, user, done){
-    
+  function(client, user, done) {
+
     var token;
     // Do your lookup/token generation.
     // ... token =
 
     done(null, token);
   },
-  function(client, user, done){
+  function(client, user, done) {
     var id_token;
     // Do your lookup/token generation.
     // ... id_token =
@@ -81,22 +83,22 @@ server.grant(oauth2orize_ext.grant.idTokenToken(
 
 // 'code id_token' grant type.
 server.grant(oauth2orize_ext.grant.codeIdToken(
-  function(client, redirect_uri, user, done){
+  function(client, redirect_uri, user, done) {
     var code;
     // Do your lookup/token generation.
     // ... code =
 
     done(null, code);
   },
-  function(client, user, done){
+  function(client, user, done) {
     //do i need lookups here?
     var lifetimeInMinutes = 60;
-    var id_token= {
-     "iss": config.get('issuer'),
-     "sub": user.id,
-     "aud": client.clientId,
-     "exp": new Date((new Date()).getTime() + lifetimeInMinutes*60000),
-     "iat": new Date()
+    var id_token = {
+      "iss": config.get('issuer'),
+      "sub": user.id,
+      "aud": client.clientId,
+      "exp": new Date((new Date()).getTime() + lifetimeInMinutes * 60000),
+      "iat": new Date()
     }
     done(null, id_token);
   }
@@ -104,13 +106,13 @@ server.grant(oauth2orize_ext.grant.codeIdToken(
 
 // 'code token' grant type.
 server.grant(oauth2orize_ext.grant.codeToken(
-  function(client, user, done){
+  function(client, user, done) {
     var token;
     // Do your lookup/token generation.
     // ... id_token =
     done(null, token);
   },
-  function(client, redirect_uri, user, done){
+  function(client, redirect_uri, user, done) {
     var code;
     // Do your lookup/token generation.
     // ... code =
@@ -119,39 +121,19 @@ server.grant(oauth2orize_ext.grant.codeToken(
   }
 ));
 
-/*> console.log(new Buffer("Hello World").toString('base64'));
-SGVsbG8gV29ybGQ=
-> console.log(new Buffer("SGVsbG8gV29ybGQ=", 'base64').toString('ascii'))
-Hello World*/
-
-
-
-/*function createAccessToken(clientId, userId, done){
-  var token = utils.uid(256);
-  var newAccessToken = new AccessToken({
-    token: token,
-    userId: userId,
-    clientId: clientId
-  });
-  newAccessToken.save(function(err) {
-      if (err) { return done(err); }
-      done(null, token);
-  });
-}*/
-
 // 'code id_token token' grant type.
 server.grant(oauth2orize_ext.grant.codeIdTokenToken(
- function(client, user, done){
+  function(client, user, done) {
     // Do your lookup/token generation.
     //access_token
     //do we need to lookup the access token and reuse if one exists or always generate a new one????
     //createAccessToken(client.id, user.id, done)
   },
-  function(client, redirect_uri, user, done){
+  function(client, redirect_uri, user, done) {
     //what should i do with the redirect url here?? find out (see comments further down, is needed for extra security check)
     //createAuthorizationCode(client.id, user.id, redirect_uri, done)
   },
-  function(client, user, done){
+  function(client, user, done) {
     //do we need validation of some sorts here?
     //createIdToken(client.clientId, user.userId, done);
   }
@@ -165,48 +147,56 @@ server.grant(oauth2orize_ext.grant.codeIdTokenToken(
 // through a process of the user granting access, and the client exchanging
 // the grant for an access token.
 
-function removeTokens(clientId, userId){
-  return AccessToken.removeAsync({ userId: userId, clientId: clientId })
-    .then(function(){
-      return RefreshToken.removeAsync({ userId: userId, clientId: clientId });
+function removeTokens(clientId, userId) {
+  return AccessToken.removeAsync({
+      userId: userId,
+      clientId: clientId
+    })
+    .then(function() {
+      return RefreshToken.removeAsync({
+        userId: userId,
+        clientId: clientId
+      });
     });
 }
 
-function createRefreshToken(clientId, userId){
+function createRefreshToken(clientId, userId) {
   var refreshToken = utils.uid(32);
   return new RefreshToken({
     token: refreshToken,
     userId: userId,
-    clientId: clientId
-  }); 
+    clientId: clientId,
+    expiryDate: new Date((new Date()).getTime() + config.get('accesstoken_lifetime_in_minutes') * 60000)
+  });
 }
 
-function createAccessToken(clientId, userId){
+function createAccessToken(clientId, userId) {
   var accessToken = utils.uid(256);
   return new AccessToken({
     token: accessToken,
     userId: userId,
-    clientId: clientId
+    clientId: clientId,
+    expiryDate: new Date((new Date()).getTime() + config.get('accesstoken_lifetime_in_minutes') * 60000)
   });
 }
 
-function generateTokenOptions(clientId, userId){
+function generateTokenOptions(clientId, userId) {
   return {
     algorithm: 'RS256',
-    expiresIn: '12h',
+    expiresIn: config.get('accesstoken_lifetime_in_minutes') + 'm',
     audience: clientId,
     subject: userId,
     issuer: config.get('issuer')
   };
 }
 
-function createAuthorizationCode(clientId, userId, redirectUri){
+function createAuthorizationCode(clientId, userId, redirectUri) {
   var code = crypto.randomBytes(16).toString('hex');
   return new AuthorizationCode({
     code: code,
     redirectUri: redirectUri,
     userId: userId,
-    clientId: clientId,
+    clientId: clientId
   });
 }
 
@@ -217,9 +207,12 @@ function createAuthorizationCode(clientId, userId, redirectUri){
 // the application.  The application issues a code, which is bound to these
 // values, and will be exchanged for an access token.
 server.grant(oauth2orize.grant.code(function(client, redirectURI, user, ares, done) {
-  AuthorizationCode.findOneAsync({userId: user.id, clientId: client.id})
+  AuthorizationCode.findOneAsync({
+      userId: user.id,
+      clientId: client.id
+    })
     .then(function(authCode) {
-      if(!authCode) {
+      if (!authCode) {
         var authorizationCode = createAuthorizationCode(client.id, user.id, redirectURI);
         return authorizationCode.saveAsync();
       }
@@ -227,13 +220,15 @@ server.grant(oauth2orize.grant.code(function(client, redirectURI, user, ares, do
         return [authCode];
       }
     })
-    .spread(function(authCode){
+    .spread(function(authCode) {
       return [authCode.code];
     })
-    .catch(function(err){
+    .catch(function(err) {
       return [err];
     })
-    .nodeify(done, {spread: true});
+    .nodeify(done, {
+      spread: true
+    });
 }));
 
 // Grant implicit authorization.  The callback takes the `client` requesting
@@ -244,8 +239,10 @@ server.grant(oauth2orize.grant.code(function(client, redirectURI, user, ares, do
 server.grant(oauth2orize.grant.token(function(client, user, ares, done) {
   var token = createAccessToken(client.id, user.id);
   token.save(function(err) {
-      if (err) { return done(err); }
-      done(null, token);
+    if (err) {
+      return done(err);
+    }
+    done(null, token);
   });
 }));
 
@@ -255,101 +252,97 @@ server.grant(oauth2orize.grant.token(function(client, user, ares, done) {
 // application issues an access token on behalf of the user who authorized the
 // code.
 server.exchange(oauth2orize.exchange.code(function(client, code, redirectURI, done) {
-  AuthorizationCode.findOneAsync({code: code})
+  AuthorizationCode.findOneAsync({
+      code: code
+    })
     .bind({})
     .then(function(authCode) {
       this.authCode = authCode;
-      if (!authCode.clientId.equals(client.id)) { return [false]; }
-      if (redirectURI !== authCode.redirectUri) { return [false]; }
-      
+      if (!authCode.clientId.equals(client.id)) {
+        throw new NotAllowedError('auth code client id different from current clients id');
+      }
+      if (redirectURI !== authCode.redirectUri) {
+        throw new NotAllowedError('redirectURI not matching auth code redirectURI');
+      }
+
       return removeTokens(this.authCode.clientId, this.authCode.userId);
     })
-    .then(function(){
+    .then(function() {
       var newRefreshToken = createRefreshToken(this.authCode.clientId, this.authCode.userId);
       return newRefreshToken.saveAsync();
     })
-    .spread(function(savedRefreshToken){
+    .spread(function(savedRefreshToken) {
       this.savedRefreshToken = savedRefreshToken;
       var newAccessToken = createAccessToken(this.authCode.clientId, this.authCode.userId)
       return newAccessToken.saveAsync();
     })
-    .spread(function(savedAccessToken){
+    .spread(function(savedAccessToken) {
       this.savedAccessToken = savedAccessToken;
       return fs.readFileAsync('private_key.pem', 'utf8');
     })
     .then(function(data) {
-      var token = jwt.sign({ foo: 'bar' }, data, generateTokenOptions(client.clientId, this.authCode.userId));
-      return [this.savedAccessToken.token, this.savedRefreshToken.token, {id_token: token}];
+      var token = jwt.sign({
+        foo: 'bar'
+      }, data, generateTokenOptions(client.clientId, this.authCode.userId));
+      return [this.savedAccessToken.token, this.savedRefreshToken.token, {
+        id_token: token,
+        expires_in: this.savedAccessToken.expiryDate
+      }];
     })
-    .catch(function(err){
+    .catch(function(err) {
       return [err];
     })
-    .nodeify(done, {spread:true});
+    .nodeify(done, {
+      spread: true
+    });
 }));
 
 server.exchange(oauth2orize.exchange.refreshToken(function(client, refreshToken, scope, done) {
-    RefreshToken.findOne({ token: refreshToken }, function(err, token) {
-        if (err) { return done(err); }
-        if (!token) { return done(null, false); }
-        if (!token) { return done(null, false); }
-
-        User.findById(token.userId, function(err, user) {
-            if (err) { return done(err); }
-            if (!user) { return done(null, false); }
-
-            RefreshToken.remove({ userId: user.userId, clientId: client.clientId }, function (err) {
-                if (err) return done(err);
-            });
-            AccessToken.remove({ userId: user.userId, clientId: client.clientId }, function (err) {
-                if (err) return done(err);
-            });
-            
-            var refreshToken = utils.uid(32);
-            var newRefreshToken = new RefreshToken({
-              token: refreshToken,
-              userId: user.userId,
-              clientId: client.clientId
-            });
-            newRefreshToken.save(function (err){
-              if (err) { return done(err); }
-              var accessToken = utils.uid(256);
-              var newAccessToken = new AccessToken({
-                token: accessToken,
-                userId: user.userId,
-                clientId: client.clientId
-              });
-              newAccessToken.save(function(err) {
-                if (err) { return done(err); }
-                
-                fs.readFile('private_key.pem', 'utf8', function(err, data) {
-                  if (err) throw err;
-                  var options = {
-                    algorithm: 'RS256',
-                    expiresIn: '12h',
-                    audience: client.clientId,
-                    subject: user.userId,
-                    issuer: config.get('issuer')
-                  };
-                  
-                  var token = jwt.sign({ foo: 'bar' }, data, options);
-                  done(null, accessToken, refreshToken, { id_token : token});
-                });
-              });
-            });
-            
-            /*var tokenValue = crypto.randomBytes(32).toString('hex');
-            var refreshTokenValue = crypto.randomBytes(32).toString('hex');
-            var token = new AccessToken({ token: tokenValue, clientId: client.clientId, userId: user.userId });
-            var refreshToken = new RefreshToken({ token: refreshTokenValue, clientId: client.clientId, userId: user.userId });
-            refreshToken.save(function (err) {
-                if (err) { return done(err); }
-            });
-            var info = { scope: '*' }
-            token.save(function (err, token) {
-                if (err) { return done(err); }
-                done(null, tokenValue, refreshTokenValue, { 'expires_in': config.get('security:tokenLife') });
-            });*/
-        });
+  RefreshToken.findOneAsync({
+      token: refreshToken
+    })
+    .bind({})
+    .then(function(dbRefreshToken) {
+      this.dbRefreshToken = dbRefreshToken;
+      if (!dbRefreshToken) {
+        throw new NotAllowedError('refresh token was not found');
+      }
+      if (!dbRefreshToken.clientId.equals(client.id)) {
+        throw new NotAllowedError('refresh token client id different from current clients id');
+      }
+      return User.findByIdAsync(dbRefreshToken.userId);
+    })
+    .then(function(user) {
+      if (!user) {
+        throw new NotAllowedError('refresh token user was not found');
+      }
+      this.user = user;
+      return removeTokens(client.id, this.user.id);
+    })
+    .then(function() {
+      var newRefreshToken = createRefreshToken(this.dbRefreshToken.clientId, this.user.id);
+      return newRefreshToken.saveAsync();
+    })
+    .spread(function(savedRefreshToken) {
+      this.savedRefreshToken = savedRefreshToken;
+      var newAccessToken = createAccessToken(savedRefreshToken.clientId, savedRefreshToken.userId);
+      return newAccessToken.saveAsync();
+    })
+    .spread(function(savedAccessToken) {
+      return [savedAccessToken.token, this.savedRefreshToken.token, {
+        expires_in: savedAccessToken.expiryDate
+      }];
+    })
+    .catch(NotAllowedError, function(err) {
+      console.log(err);
+      return [false];
+    })
+    .catch(function(err) {
+      console.log(err);
+      return [err];
+    })
+    .nodeify(done, {
+      spread: true
     });
 }));
 
@@ -359,27 +352,39 @@ server.exchange(oauth2orize.exchange.refreshToken(function(client, refreshToken,
 // application issues an access token on behalf of the user who authorized the code.
 
 server.exchange(oauth2orize.exchange.password(function(client, username, password, scope, done) {
-
-    //Validate the client
-    Client.findOne({ clientId: client.clientId }, function(err, localClient) {
-        if (err) { return done(err); }
-        if(localClient === null) {
-            return done(null, false);
-        }
-        if(localClient.clientSecret !== client.clientSecret) {
-            return done(null, false);
-        }
-        //Validate the user
-        User.findOne({username: username}, function(err, user) {
-            if (err) { return done(err); }
-            if(user === null) {
-                return done(null, false);
-            }
-            if(password !== user.password) {
-                return done(null, false);
-            }
-            createAccessToken(client.id, user.id, done);
-        });
+  Client.findOneAsync({
+      clientId: client.clientId
+    })
+    .bind({})
+    .then(function(dbClient) {
+      if (!dbClient) {
+        return [false];
+      }
+      if (dbClient.clientSecret !== client.clientSecret) {
+        return [false];
+      }
+      return User.findOneAsync({
+        username: username
+      });
+    })
+    .then(function(user) {
+      if (!user) {
+        return [false];
+      }
+      if (password !== user.password) {
+        return [false];
+      }
+      var newAccessToken = createAccessToken(client.clientId, user.userId)
+      return newAccessToken.saveAsync();
+    })
+    .spread(function(savedAccessToken) {
+      return [savedAccessToken.token];
+    })
+    .catch(function(err) {
+      return [err];
+    })
+    .nodeify(done, {
+      spread: true
     });
 }));
 
@@ -389,17 +394,28 @@ server.exchange(oauth2orize.exchange.password(function(client, username, passwor
 // application issues an access token on behalf of the client who authorized the code.
 
 server.exchange(oauth2orize.exchange.clientCredentials(function(client, scope, done) {
-    //Validate the client
-    Client.findOne({clientId: client.clientId}, function(err, localClient) {
-        if (err) { return done(err); }
-        if(localClient === null) {
-            return done(null, false);
-        }
-        if(localClient.clientSecret !== client.clientSecret) {
-            return done(null, false);
-        }
-        //Pass in a null for user id since there is no user with this grant type
-        createAccessToken(client.id, null, done);
+  Client.findOneAsync({
+      clientId: client.clientId
+    })
+    .bind({})
+    .then(function(dbClient) {
+      if (!dbClient) {
+        return [false];
+      }
+      if (dbClient.clientSecret !== client.clientSecret) {
+        return [false];
+      }
+      var newAccessToken = createAccessToken(client.clientId, null)
+      return newAccessToken.saveAsync();
+    })
+    .spread(function(savedAccessToken) {
+      return [savedAccessToken.token];
+    })
+    .catch(function(err) {
+      return [err];
+    })
+    .nodeify(done, {
+      spread: true
     });
 }));
 
@@ -422,8 +438,12 @@ server.exchange(oauth2orize.exchange.clientCredentials(function(client, scope, d
 exports.authorization = [
   login.ensureLoggedIn(),
   server.authorization(function(clientId, redirectURI, done) {
-    Client.findOne({clientId: clientId}, function(err, client) {
-      if (err) { return done(err); }
+    Client.findOne({
+      clientId: clientId
+    }, function(err, client) {
+      if (err) {
+        return done(err);
+      }
       // WARNING: For security purposes, it is highly advisable to check that
       //          redirectURI provided by the client matches one registered with
       //          the server.  For simplicity, this example does not.  You have
@@ -431,15 +451,19 @@ exports.authorization = [
       return done(null, client, redirectURI);
     });
   }),
-  function (req, res, next) {
+  function(req, res, next) {
     if (req.query.prompt !== 'none') return next();
     // When using "prompt=none", redirect back immediately
-    server.decision({loadTransaction: false}, function parse(sreq, done) {
-      if (!sreq.user) return done(null, {allow: false});
+    server.decision({
+      loadTransaction: false
+    }, function parse(sreq, done) {
+      if (!sreq.user) return done(null, {
+        allow: false
+      });
       done();
     })(req, res, next);
   },
-  function (req, res) {
+  function(req, res) {
     res.render('dialog', {
       transactionID: req.oauth2.transactionID,
       user: req.user,
@@ -469,7 +493,9 @@ exports.decision = [
 // authenticate when making requests to this endpoint.
 
 exports.token = [
-  passport.authenticate(['basic', 'oauth2-client-password'], { session: false }),
+  passport.authenticate(['basic', 'oauth2-client-password'], {
+    session: false
+  }),
   server.token(),
   server.errorHandler()
 ]
