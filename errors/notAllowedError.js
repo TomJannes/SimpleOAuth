@@ -1,3 +1,4 @@
+'use strict';
 
 module.exports = function CustomError(message, extra) {
   Error.captureStackTrace(this, this.constructor);

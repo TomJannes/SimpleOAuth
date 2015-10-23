@@ -27,6 +27,8 @@
     "passport-oauth2-client-password": "0.1.x"
   },
   "devDependencies": {
+    "eslint": "^1.7.2",
+    "eslint-config-eslint": "^1.0.1",
     "mongodb": "^2.0.45",
     "mongodb-migrations": "^0.5.0"
   }

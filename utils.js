@@ -1,3 +1,16 @@
+'use strict';
+/**
+ * Return a random int, used by `utils.uid()`
+ *
+ * @param {Number} min
+ * @param {Number} max
+ * @return {Number}
+ * @api private
+ */
+function getRandomInt(min, max) {
+  return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+
 /**
  * Return a unique identifier with the given `len`.
  *
@@ -9,30 +22,17 @@
  * @api private
  */
 exports.uid = function(len) {
-    var buf = []
-        , chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'
-        , charlen = chars.length;
+  var buf = [],
+    chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789',
+    charlen = chars.length;
 
-    for (var i = 0; i < len; ++i) {
-        buf.push(chars[getRandomInt(0, charlen - 1)]);
-    }
+  for (var i = 0; i < len; ++i) {
+    buf.push(chars[getRandomInt(0, charlen - 1)]);
+  }
 
-    return buf.join('');
+  return buf.join('');
 };
 
-exports.handleInternalServerError = function (err, res){
-    if (err) return res.status(500).send(err);
+exports.handleInternalServerError = function(err, res) {
+  if (err) { return res.status(500).send(err); }
 };
-
-/**
- * Return a random int, used by `utils.uid()`
- *
- * @param {Number} min
- * @param {Number} max
- * @return {Number}
- * @api private
- */
-
-function getRandomInt(min, max) {
-    return Math.floor(Math.random() * (max - min + 1)) + min;
-}

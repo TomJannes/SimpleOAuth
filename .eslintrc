@@ -1,0 +1,17 @@
+{
+  "extends": "./node_modules/eslint-config-eslint/default.yml",
+  "env": {
+    "node": true
+  },
+  "rules": {
+    "quotes": [2, "single", "avoid-escape"],
+    "indent": [2, 2],
+    "brace-style": [2, "1tbs", { "allowSingleLine": true }],
+    "no-underscore-dangle": 0,
+    "no-eq-null": 0,
+    "eqeqeq": [2, "smart"],
+    "valid-jsdoc": 0,
+    "require-jsdoc": 0,
+    "no-invalid-this": 0
+  }
+}

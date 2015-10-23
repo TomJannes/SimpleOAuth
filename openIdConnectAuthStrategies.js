@@ -1,15 +1,16 @@
+'use strict';
 /**
  * Module dependencies.
  */
-var passport = require('passport')
-  , LocalStrategy = require('passport-local').Strategy
-  , BasicStrategy = require('passport-http').BasicStrategy
-  , ClientPasswordStrategy = require('passport-oauth2-client-password').Strategy
-  , BearerStrategy = require('passport-http-bearer').Strategy
-  , User = require('./models/user')
-  , Client = require('./models/client')
-  , AccessToken = require('./models/accessToken');
-  //, db = require('./db')
+var passport = require('passport');
+var LocalStrategy = require('passport-local').Strategy;
+var BasicStrategy = require('passport-http').BasicStrategy;
+var ClientPasswordStrategy = require('passport-oauth2-client-password').Strategy;
+var BearerStrategy = require('passport-http-bearer').Strategy;
+var User = require('./models/user');
+var Client = require('./models/client');
+var AccessToken = require('./models/accessToken');
+
 
 
 /**
@@ -21,10 +22,18 @@ var passport = require('passport')
  */
 passport.use(new LocalStrategy(
   function(username, password, done) {
-    User.findOne({username: username}, function(err, user) {
-      if (err) { return done(err); }
-      if (!user) { return done(null, false); }
-      if (user.password != password) { return done(null, false); }
+    User.findOne({
+      username: username
+    }, function(err, user) {
+      if (err) {
+        return done(err);
+      }
+      if (!user) {
+        return done(null, false);
+      }
+      if (user.password !== password) {
+        return done(null, false);
+      }
       return done(null, user);
     });
   }
@@ -35,7 +44,7 @@ passport.serializeUser(function(user, done) {
 });
 
 passport.deserializeUser(function(id, done) {
-  User.findById(id, function (err, user) {
+  User.findById(id, function(err, user) {
     done(err, user);
   });
 });
@@ -54,10 +63,18 @@ passport.deserializeUser(function(id, done) {
  */
 passport.use(new BasicStrategy(
   function(username, password, done) {
-    Client.findOne({clientId: username}, function(err, client) {
-      if (err) { return done(err); }
-      if (!client) { return done(null, false); }
-      if (client.clientSecret != password) { return done(null, false); }
+    Client.findOne({
+      clientId: username
+    }, function(err, client) {
+      if (err) {
+        return done(err);
+      }
+      if (!client) {
+        return done(null, false);
+      }
+      if (client.clientSecret !== password) {
+        return done(null, false);
+      }
       return done(null, client);
     });
   }
@@ -65,10 +82,18 @@ passport.use(new BasicStrategy(
 
 passport.use(new ClientPasswordStrategy(
   function(clientId, clientSecret, done) {
-    Client.findOne({clientId: clientId}, function(err, client) {
-      if (err) { return done(err); }
-      if (!client) { return done(null, false); }
-      if (client.clientSecret != clientSecret) { return done(null, false); }
+    Client.findOne({
+      clientId: clientId
+    }, function(err, client) {
+      if (err) {
+        return done(err);
+      }
+      if (!client) {
+        return done(null, false);
+      }
+      if (client.clientSecret !== clientSecret) {
+        return done(null, false);
+      }
       return done(null, client);
     });
   }
@@ -84,30 +109,48 @@ passport.use(new ClientPasswordStrategy(
  */
 passport.use(new BearerStrategy(
   function(accessToken, done) {
-    AccessToken.findOne({token: accessToken}, function(err, token) {
-      if (err) { return done(err); }
-      if (!token) { return done(null, false); }
+    AccessToken.findOne({
+      token: accessToken
+    }, function(err, token) {
+      if (err) {
+        return done(err);
+      }
+      if (!token) {
+        return done(null, false);
+      }
 
-      if(token.userId != null) {
-          User.findById(token.userId, function(err, user) {
-              if (err) { return done(err); }
-              if (!user) { return done(null, false); }
-              // to keep this example simple, restricted scopes are not implemented,
-              // and this is just for illustrative purposes
-              var info = { scope: '*' }
-              done(null, user, info);
-          });
+      if (token.userId != null) {
+        User.findById(token.userId, function(findUserByIdErr, user) {
+          if (findUserByIdErr) {
+            return done(findUserByIdErr);
+          }
+          if (!user) {
+            return done(null, false);
+          }
+          // to keep this example simple, restricted scopes are not implemented,
+          // and this is just for illustrative purposes
+          var info = {
+            scope: '*'
+          };
+          done(null, user, info);
+        });
       } else {
-          //The request came from a client only since userID is null
-          //therefore the client is passed back instead of a user
-          Client.findById(token.clientId, function(err, client) {
-             if(err) { return done(err); }
-              if(!client) { return done(null, false); }
-              // to keep this example simple, restricted scopes are not implemented,
-              // and this is just for illustrative purposes
-              var info = { scope: '*' }
-              done(null, client, info);
-          });
+        // The request came from a client only since userID is null
+        // therefore the client is passed back instead of a user
+        Client.findById(token.clientId, function(findClientByIdErr, client) {
+          if (findClientByIdErr) {
+            return done(findClientByIdErr);
+          }
+          if (!client) {
+            return done(null, false);
+          }
+          // to keep this example simple, restricted scopes are not implemented,
+          // and this is just for illustrative purposes
+          var info = {
+            scope: '*'
+          };
+          done(null, client, info);
+        });
       }
     });
   }

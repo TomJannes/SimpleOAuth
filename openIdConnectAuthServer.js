@@ -1,23 +1,23 @@
+'use strict';
 /**
  * Module dependencies.
  */
-var oauth2orize = require('oauth2orize'),
-  oauth2orize_ext = require('oauth2orize-openid'), // require extentions.
-  passport = require('passport'),
-  login = require('connect-ensure-login'),
-  utils = require('./utils'),
-  AuthorizationCode = require('./models/authorizationCode'),
-  AccessToken = require('./models/accessToken'),
-  RefreshToken = require('./models/refreshToken'),
-  Client = require('./models/client'),
-  User = require('./models/user'),
-  jwt = require('jsonwebtoken'),
-  utils = require('./utils'),
-  config = require('config'),
-  crypto = require('crypto'),
-  Promise = require('bluebird'),
-  fs = Promise.promisifyAll(require('fs')), //todo: move to startup + cache
-  NotAllowedError = require('./errors/notAllowedError');
+var oauth2orize = require('oauth2orize');
+var oauth2orizeExt = require('oauth2orize-openid'); // require extentions.
+var passport = require('passport');
+var login = require('connect-ensure-login');
+var utils = require('./utils');
+var AuthorizationCode = require('./models/authorizationCode');
+var AccessToken = require('./models/accessToken');
+var RefreshToken = require('./models/refreshToken');
+var Client = require('./models/client');
+var User = require('./models/user');
+var jwt = require('jsonwebtoken');
+var config = require('config');
+var crypto = require('crypto');
+var Promise = require('bluebird');
+var fs = Promise.promisifyAll(require('fs')); // todo: move to startup + cache
+var NotAllowedError = require('./errors/notAllowedError');
 
 // create OAuth 2.0 server
 var server = oauth2orize.createServer();
@@ -53,16 +53,16 @@ server.deserializeClient(function(id, done) {
 // Implicit Flow
 
 // id_token grant type.
-server.grant(oauth2orize_ext.grant.idToken(function(client, user, done) {
-  var id_token;
+server.grant(oauth2orizeExt.grant.idToken(function(client, user, done) {
+  var idToken;
   // Do your lookup/token generation.
   // ... id_token =
 
-  done(null, id_token);
+  done(null, idToken);
 }));
 
 // 'id_token token' grant type.
-server.grant(oauth2orize_ext.grant.idTokenToken(
+server.grant(oauth2orizeExt.grant.idTokenToken(
   function(client, user, done) {
 
     var token;
@@ -72,18 +72,18 @@ server.grant(oauth2orize_ext.grant.idTokenToken(
     done(null, token);
   },
   function(client, user, done) {
-    var id_token;
+    var idToken;
     // Do your lookup/token generation.
     // ... id_token =
-    done(null, id_token);
+    done(null, idToken);
   }
 ));
 
 // Hybrid Flow
 
 // 'code id_token' grant type.
-server.grant(oauth2orize_ext.grant.codeIdToken(
-  function(client, redirect_uri, user, done) {
+server.grant(oauth2orizeExt.grant.codeIdToken(
+  function(client, redirectUri, user, done) {
     var code;
     // Do your lookup/token generation.
     // ... code =
@@ -91,28 +91,20 @@ server.grant(oauth2orize_ext.grant.codeIdToken(
     done(null, code);
   },
   function(client, user, done) {
-    //do i need lookups here?
-    var lifetimeInMinutes = 60;
-    var id_token = {
-      "iss": config.get('issuer'),
-      "sub": user.id,
-      "aud": client.clientId,
-      "exp": new Date((new Date()).getTime() + lifetimeInMinutes * 60000),
-      "iat": new Date()
-    }
-    done(null, id_token);
+    var idToken;
+    done(null, idToken);
   }
 ));
 
 // 'code token' grant type.
-server.grant(oauth2orize_ext.grant.codeToken(
+server.grant(oauth2orizeExt.grant.codeToken(
   function(client, user, done) {
     var token;
     // Do your lookup/token generation.
     // ... id_token =
     done(null, token);
   },
-  function(client, redirect_uri, user, done) {
+  function(client, redirectUri, user, done) {
     var code;
     // Do your lookup/token generation.
     // ... code =
@@ -122,20 +114,19 @@ server.grant(oauth2orize_ext.grant.codeToken(
 ));
 
 // 'code id_token token' grant type.
-server.grant(oauth2orize_ext.grant.codeIdTokenToken(
+server.grant(oauth2orizeExt.grant.codeIdTokenToken(
   function(client, user, done) {
     // Do your lookup/token generation.
-    //access_token
-    //do we need to lookup the access token and reuse if one exists or always generate a new one????
-    //createAccessToken(client.id, user.id, done)
+    var accesToken;
+    done(null, accesToken);
   },
-  function(client, redirect_uri, user, done) {
-    //what should i do with the redirect url here?? find out (see comments further down, is needed for extra security check)
-    //createAuthorizationCode(client.id, user.id, redirect_uri, done)
+  function(client, redirectUri, user, done) {
+    var idToken;
+    done(null, idToken);
   },
   function(client, user, done) {
-    //do we need validation of some sorts here?
-    //createIdToken(client.clientId, user.userId, done);
+    var token;
+    done(null, token);
   }
 ));
 
@@ -149,9 +140,9 @@ server.grant(oauth2orize_ext.grant.codeIdTokenToken(
 
 function removeTokens(clientId, userId) {
   return AccessToken.removeAsync({
-      userId: userId,
-      clientId: clientId
-    })
+    userId: userId,
+    clientId: clientId
+  })
     .then(function() {
       return RefreshToken.removeAsync({
         userId: userId,
@@ -208,15 +199,14 @@ function createAuthorizationCode(clientId, userId, redirectUri) {
 // values, and will be exchanged for an access token.
 server.grant(oauth2orize.grant.code(function(client, redirectURI, user, ares, done) {
   AuthorizationCode.findOneAsync({
-      userId: user.id,
-      clientId: client.id
-    })
+    userId: user.id,
+    clientId: client.id
+  })
     .then(function(authCode) {
       if (!authCode) {
         var authorizationCode = createAuthorizationCode(client.id, user.id, redirectURI);
         return authorizationCode.saveAsync();
-      }
-      else {
+      } else {
         return [authCode];
       }
     })
@@ -253,8 +243,8 @@ server.grant(oauth2orize.grant.token(function(client, user, ares, done) {
 // code.
 server.exchange(oauth2orize.exchange.code(function(client, code, redirectURI, done) {
   AuthorizationCode.findOneAsync({
-      code: code
-    })
+    code: code
+  })
     .bind({})
     .then(function(authCode) {
       this.authCode = authCode;
@@ -273,7 +263,7 @@ server.exchange(oauth2orize.exchange.code(function(client, code, redirectURI, do
     })
     .spread(function(savedRefreshToken) {
       this.savedRefreshToken = savedRefreshToken;
-      var newAccessToken = createAccessToken(this.authCode.clientId, this.authCode.userId)
+      var newAccessToken = createAccessToken(this.authCode.clientId, this.authCode.userId);
       return newAccessToken.saveAsync();
     })
     .spread(function(savedAccessToken) {
@@ -299,8 +289,8 @@ server.exchange(oauth2orize.exchange.code(function(client, code, redirectURI, do
 
 server.exchange(oauth2orize.exchange.refreshToken(function(client, refreshToken, scope, done) {
   RefreshToken.findOneAsync({
-      token: refreshToken
-    })
+    token: refreshToken
+  })
     .bind({})
     .then(function(dbRefreshToken) {
       this.dbRefreshToken = dbRefreshToken;
@@ -353,8 +343,8 @@ server.exchange(oauth2orize.exchange.refreshToken(function(client, refreshToken,
 
 server.exchange(oauth2orize.exchange.password(function(client, username, password, scope, done) {
   Client.findOneAsync({
-      clientId: client.clientId
-    })
+    clientId: client.clientId
+  })
     .bind({})
     .then(function(dbClient) {
       if (!dbClient) {
@@ -374,7 +364,7 @@ server.exchange(oauth2orize.exchange.password(function(client, username, passwor
       if (password !== user.password) {
         return [false];
       }
-      var newAccessToken = createAccessToken(client.clientId, user.userId)
+      var newAccessToken = createAccessToken(client.clientId, user.userId);
       return newAccessToken.saveAsync();
     })
     .spread(function(savedAccessToken) {
@@ -395,8 +385,8 @@ server.exchange(oauth2orize.exchange.password(function(client, username, passwor
 
 server.exchange(oauth2orize.exchange.clientCredentials(function(client, scope, done) {
   Client.findOneAsync({
-      clientId: client.clientId
-    })
+    clientId: client.clientId
+  })
     .bind({})
     .then(function(dbClient) {
       if (!dbClient) {
@@ -405,7 +395,7 @@ server.exchange(oauth2orize.exchange.clientCredentials(function(client, scope, d
       if (dbClient.clientSecret !== client.clientSecret) {
         return [false];
       }
-      var newAccessToken = createAccessToken(client.clientId, null)
+      var newAccessToken = createAccessToken(client.clientId, null);
       return newAccessToken.saveAsync();
     })
     .spread(function(savedAccessToken) {
@@ -433,7 +423,7 @@ server.exchange(oauth2orize.exchange.clientCredentials(function(client, scope, d
 // the application's responsibility to authenticate the user and render a dialog
 // to obtain their approval (displaying details about the client requesting
 // authorization).  We accomplish that here by routing through `ensureLoggedIn()`
-// first, and rendering the `dialog` view. 
+// first, and rendering the `dialog` view.
 
 exports.authorization = [
   login.ensureLoggedIn(),
@@ -452,14 +442,16 @@ exports.authorization = [
     });
   }),
   function(req, res, next) {
-    if (req.query.prompt !== 'none') return next();
+    if (req.query.prompt !== 'none') { return next(); }
     // When using "prompt=none", redirect back immediately
     server.decision({
       loadTransaction: false
     }, function parse(sreq, done) {
-      if (!sreq.user) return done(null, {
-        allow: false
-      });
+      if (!sreq.user) {
+        return done(null, {
+          allow: false
+        });
+      }
       done();
     })(req, res, next);
   },
@@ -470,7 +462,7 @@ exports.authorization = [
       client: req.oauth2.client
     });
   }
-]
+];
 
 // user decision endpoint
 //
@@ -482,7 +474,7 @@ exports.authorization = [
 exports.decision = [
   login.ensureLoggedIn(),
   server.decision()
-]
+];
 
 
 // token endpoint
@@ -498,4 +490,4 @@ exports.token = [
   }),
   server.token(),
   server.errorHandler()
-]
+];

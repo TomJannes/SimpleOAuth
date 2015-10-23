@@ -1,4 +1,5 @@
-//Module dependencies
+'use strict';
+// Module dependencies
 var express = require('express');
 var http = require('http');
 var passport = require('passport');
@@ -9,13 +10,9 @@ var logger = require('morgan');
 var mongoose = require('mongoose');
 var config = require('config');
 var Promise = require('bluebird');
-/*require("./authStrategies");
-var registrationController = require('./controllers/registrationController');
-var loginController = require('./controllers/loginController');
-var authorizationController = require('./controllers/authorizationController');*/
-var profileController = require('./controllers/profileController');
-
+var path = require('path');
 var site = require('./controllers/siteController');
+var profileController = require('./controllers/profileController');
 var oauth2 = require('./openIdConnectAuthServer');
 
 Promise.promisifyAll(mongoose.Model);
@@ -26,7 +23,7 @@ mongoose.connect(config.get('connectionstring'));
 
 // Express configuration
 var app = express();
-app.set('views', __dirname + '/views');
+app.set('views', path.join(__dirname, '/views'));
 app.set('view engine', 'jade');
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({
@@ -58,11 +55,11 @@ app.post('/oauth/token', oauth2.token);
 
 app.get('/oauth/profile', passport.authenticate('bearer'), profileController.getProfile);
 
-//Start
-if(config.has('server.port')){
+
+if (config.has('server.port')) {
   process.env.PORT = config.get('server.port');
 }
-if(config.has('server.ip')){
+if (config.has('server.ip')) {
   process.env.IP = config.get('server.ip');
 }
-http.createServer(app).listen(process.env.PORT || 3000, process.env.IP || "0.0.0.0");
+http.createServer(app).listen(process.env.PORT || 3000, process.env.IP || '0.0.0.0');

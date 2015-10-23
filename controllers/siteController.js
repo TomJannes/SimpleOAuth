@@ -1,8 +1,9 @@
-var passport = require('passport')
-  , login = require('connect-ensure-login')
-  , User = require('../models/user')
-  , Client = require('../models/client')
-  , utils = require('../utils');
+'use strict';
+var passport = require('passport');
+var login = require('connect-ensure-login');
+var User = require('../models/user');
+var Client = require('../models/client');
+var utils = require('../utils');
 
 
 exports.index = function(req, res) {
@@ -13,7 +14,10 @@ exports.loginForm = function(req, res) {
   res.render('login');
 };
 
-exports.login = passport.authenticate('local', { successReturnToOrRedirect: '/', failureRedirect: '/login' });
+exports.login = passport.authenticate('local', {
+  successReturnToOrRedirect: '/',
+  failureRedirect: '/login'
+});
 
 exports.logout = function(req, res) {
   req.logout();
@@ -31,13 +35,13 @@ exports.registerUser = function(req, res) {
     username: req.body.username,
     password: req.body.password
   });
-  newUser.save(function(err){
-    if(err){
+  newUser.save(function(err) {
+    if (err) {
       res.send(err);
     } else {
       res.send('ok');
     }
-    
+
   });
 };
 
@@ -53,13 +57,13 @@ exports.registerClient = function(req, res) {
     clientId: clientId,
     clientSecret: clientSecret
   });
-  newClient.save(function(err){
-    if(err){
+  newClient.save(function(err) {
+    if (err) {
       res.send(err);
     } else {
       res.send('ok');
     }
-    
+
   });
 };
 
@@ -67,6 +71,8 @@ exports.registerClient = function(req, res) {
 exports.account = [
   login.ensureLoggedIn(),
   function(req, res) {
-    res.render('account', { user: req.user });
+    res.render('account', {
+      user: req.user
+    });
   }
 ];
