@@ -19,7 +19,7 @@ Promise.promisifyAll(mongoose.Model);
 Promise.promisifyAll(mongoose.Model.prototype);
 Promise.promisifyAll(mongoose.Query.prototype);
 
-mongoose.connect(config.get('connectionstring'));
+mongoose.connect(config.get('connectionstring')); 
 
 // Express configuration
 var app = express();
