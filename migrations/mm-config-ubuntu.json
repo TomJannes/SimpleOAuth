@@ -1,5 +1,5 @@
 {
-    "host": "tomj-implicit_auth-1840296",
+    "host": "127.0.0.1",
     "port": "27017",
     "db": "authentication",
     "collection": "migrations",
