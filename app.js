@@ -19,9 +19,9 @@ Promise.promisifyAll(mongoose.Model);
 Promise.promisifyAll(mongoose.Model.prototype);
 Promise.promisifyAll(mongoose.Query.prototype);
 
-mongoose.connect(config.get('connectionstring')); 
+mongoose.connect(config.get('connectionstring'));
 
-// Express configuration 
+// Express configuration
 var app = express();
 app.set('views', path.join(__dirname, '/views'));
 app.set('view engine', 'jade');
@@ -62,4 +62,7 @@ if (config.has('server.port')) {
 if (config.has('server.ip')) {
   process.env.IP = config.get('server.ip');
 }
-http.createServer(app).listen(process.env.PORT || 3000, process.env.IP || '0.0.0.0');
+
+app.listen(process.env.PORT, process.env.IP, function(){
+  console.log('Server started on port ' + process.env.PORT);
+});
