@@ -21,7 +21,7 @@ Promise.promisifyAll(mongoose.Query.prototype);
 
 mongoose.connect(config.get('connectionstring')); 
 
-// Express configuration
+// Express configuration 
 var app = express();
 app.set('views', path.join(__dirname, '/views'));
 app.set('view engine', 'jade');
